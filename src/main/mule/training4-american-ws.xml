@@ -12,8 +12,8 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 	<db:config name="Database_Config" doc:name="Database Config" doc:id="42bfdedf-216d-4ea4-8c67-890564ebc782" >
 		<db:my-sql-connection host="mudb.learn.mulesoft.com" port="3306" user="mule" password="mule" database="training" />
 	</db:config>
-	<flow name="training4-american-wsFlow" doc:id="f24155bd-2425-4423-8bd9-dcf77f93edc3" >
-		<http:listener doc:name="Listener" doc:id="623883a8-85a0-499e-be3b-47473066a36e" config-ref="HTTP_Listener_config" path="/flights"/>
+	<flow name="getFlights" doc:id="f24155bd-2425-4423-8bd9-dcf77f93edc3" >
+		<http:listener doc:name="Listener" doc:id="623883a8-85a0-499e-be3b-47473066a36e" config-ref="HTTP_Listener_config" path="/flights" allowedMethods="GET"/>
 		<logger level="INFO" doc:name="Logger start process" doc:id="3b5d1202-714d-40e7-b976-36c2a942016f" message="Getting data from American Flights database"/>
 		<db:select doc:name="Select record from American Flights database" doc:id="b6e61c9a-dccb-410d-9dc8-1714847572c8" config-ref="Database_Config">
 			<db:sql ><![CDATA[SELECT * FROM american]]></db:sql>
@@ -39,5 +39,38 @@ payload map ( payload01 , indexOfPayload01 ) -> {
 			</ee:message>
 		</ee:transform>
 		<logger level="INFO" doc:name="Logger end process" doc:id="be00824d-df9c-4ca7-91b4-5bce82e1ec24" message="Data from American Flights database received #[payload]"/>
+	</flow>
+	<flow name="getFlightsByID" doc:id="88316284-67e6-454a-ac72-2d6e486089cc" >
+		<http:listener doc:name="Copy_of_Listener" doc:id="7a6f9cf2-c8c0-43f8-b4ef-d490425c126b" config-ref="HTTP_Listener_config" path="/flights/{ID}" allowedMethods="GET" />
+		<logger level="INFO" doc:name="Copy_of_Logger start process" doc:id="f86250f3-16f7-4be8-bb6d-f3baa8d230a2" message="Getting data from American Flights database" />
+		<db:select doc:name="Copy_of_Select record from American Flights database" doc:id="e2ced3f2-c8cb-4f81-88ce-8155d05c3fac" config-ref="Database_Config" >
+			<db:sql ><![CDATA[SELECT * FROM american WHERE ID=:ID]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{'ID' : attributes.uriParams.ID}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Copy_of_Transform American Flights record" doc:id="0fc03bb6-fafb-4684-8a9f-0645b198ca29" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	ID: payload01.ID,
+	code: (payload01.code1default "") ++ (payload01.code2 default ""),
+	price: payload01.price default 0,
+	departureDate: payload01.takeOffDate as String default "",
+	origin: payload01.fromAirport default "",
+	destination: payload01.toAirport default "",
+	emptySeats: payload01.seatsAvailable default 0,
+	plane: {
+		"type": payload01.planeType default "",
+		totalSeats: payload01.totalSeats default 0
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Copy_of_Logger end process" doc:id="7f744623-ea1a-4b8c-b744-8f6136b75492" message="Data from American Flights database received #[payload]" />
+	</flow>
+	<flow name="postFlight" doc:id="df38646c-2941-4997-bc48-66013c465003" >
+		<http:listener doc:name="Listener" doc:id="06cef0a6-08fa-40eb-9ef8-45300e65bb06" config-ref="HTTP_Listener_config" path="/flights" allowedMethods="POST"/>
+		<set-payload value='{"message": "Flight added (but not really)"}' doc:name="Set Payload" doc:id="e57510bd-6955-4b16-a3d6-42ec4e6db53a" />
 	</flow>
 </mule>
